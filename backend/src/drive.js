@@ -57,7 +57,7 @@ export class GoogleDrive {
     let response;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 120000);
-    try { response = await fetch(url, { ...options, redirect: 'error', signal: options.signal || controller.signal, headers: { Authorization: `Bearer ${await this.token()}`, ...options.headers } }); }
+    try { response = await fetch(url, { ...options, redirect: options.redirect || 'error', signal: options.signal || controller.signal, headers: { Authorization: `Bearer ${await this.token()}`, ...options.headers } }); }
     catch (error) { if (error instanceof AppError) throw error; fail(503, 'drive_unavailable', 'The connection was interrupted. Checking the upload before retrying will preserve its progress.', true); }
     finally { clearTimeout(timeout); }
     return response;
@@ -97,7 +97,9 @@ export class GoogleDrive {
   }
   async status(row) {
     if (!this.validSession(row.sessionUrl)) fail(502, 'invalid_drive_session', 'This upload session is invalid.');
-    const response = await this.request(row.sessionUrl, { method: 'PUT', headers: { 'Content-Length': '0', 'Content-Range': `bytes */${row.size}` } }); return this.result(response, row);
+    // Drive uses 308 as upload progress. Manual mode exposes that response without
+    // following redirects; redirect:error rejects it even without a Location header.
+    const response = await this.request(row.sessionUrl, { method: 'PUT', redirect: 'manual', headers: { 'Content-Length': '0', 'Content-Range': `bytes */${row.size}` } }); return this.result(response, row);
   }
   async chunk(row, range, input) {
     if (!this.validSession(row.sessionUrl)) fail(502, 'invalid_drive_session', 'This upload session is invalid.');
@@ -108,7 +110,7 @@ export class GoogleDrive {
     // Attach a rejection observer before fetch starts so a disconnected request cannot become unhandled.
     feeding.catch(() => {});
     let response;
-    try { response = await this.request(row.sessionUrl, { method: 'PUT', duplex: 'half', headers: { 'Content-Length': String(range.length), 'Content-Type': row.mimeType, 'Content-Range': `bytes ${range.start}-${range.end}/${range.total}` }, body: counter }); await feeding; }
+    try { response = await this.request(row.sessionUrl, { method: 'PUT', redirect: 'manual', duplex: 'half', headers: { 'Content-Length': String(range.length), 'Content-Type': row.mimeType, 'Content-Range': `bytes ${range.start}-${range.end}/${range.total}` }, body: counter }); await feeding; }
     catch (error) { counter.destroy(); await feeding.catch(() => {}); throw error; }
     return this.result(response, row);
   }
