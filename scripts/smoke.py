@@ -18,6 +18,7 @@ def request(path, data=None, headers=None):
     except urllib.error.HTTPError as e:
         return e.code, json.load(e), e.headers
 
+assert request('/api/health')[0] == 200
 assert request('/api/config')[0] == 200
 assert request('/api/gallery')[0] == 401
 assert request('/api/admin/status')[0] == 401

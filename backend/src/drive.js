@@ -44,7 +44,10 @@ export class GoogleDrive {
     const client = await this.oauthClient(); let tokens;
     try { ({ tokens } = await client.getToken({ code, codeVerifier: verifier })); } catch { fail(400, 'oauth_exchange_failed', 'Google could not complete the connection. Please try connecting again.'); }
     let payload;
-    try { payload = (await client.verifyIdToken({ idToken: tokens.id_token, audience: client._clientId })).getPayload(); } catch { fail(403, 'owner_mismatch', 'Google could not verify the owner account.'); }
+    try {
+      const oauth = await this.secrets.read(this.config.oauthSecret);
+      payload = (await client.verifyIdToken({ idToken: tokens.id_token, audience: oauth.clientId })).getPayload();
+    } catch { fail(403, 'owner_mismatch', 'Google could not verify the owner account.'); }
     if (!payload?.email_verified || payload.email?.toLowerCase() !== this.config.ownerEmail.toLowerCase()) fail(403, 'owner_mismatch', `Please connect the configured owner account: ${this.config.ownerEmail}.`);
     if (!tokens.refresh_token) fail(400, 'refresh_missing', 'Google did not return an offline token. Reconnect and grant the requested access.');
     if (!tokens.scope?.split(' ').includes('https://www.googleapis.com/auth/drive.file')) fail(403, 'drive_permission_missing', 'Allow access to files created by this app, then reconnect.');

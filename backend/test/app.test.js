@@ -39,6 +39,9 @@ class MockDrive {
   async metadata(id) { return this.files.get(id); }
   async media(row) { return new Response(Buffer.concat(this.files.get(row.driveId).parts), { headers: { 'Content-Type': row.mimeType } }); }
   async thumbnail() { return new Response(Buffer.from('preview'), { headers: { 'Content-Type': 'image/jpeg' } }); }
+  async authorizeUrl(state) { return 'https://accounts.google.com/o/oauth2/v2/auth?state=' + state; }
+  async connect() {}
+  async ensureFolder() { return 'folder'; }
 }
 const config = { publicBaseUrl: '', frontendOrigin: 'https://aaronkbutler.github.io', frontendUrl: 'https://aaronkbutler.github.io/wedding-photos/', ownerEmail: 'owner@example.com', adminKey: 'a'.repeat(40), eventKey: 'e'.repeat(40), signingKey: 's'.repeat(48), maxFileBytes: 1073741824, chunkBytes: 8388608, maxEventBytes: 107374182400, maxActiveUploads: 30, development: true };
 async function fixture(t) {
@@ -115,4 +118,18 @@ test('cancelling releases reservation and expired sessions cannot be resumed', a
   await assert.rejects(uploads.status(row.id), { code: 'upload_expired' });
   const other = await uploads.create({ name: 'other.jpg', mimeType: 'image/jpeg', size: 10, uploadKey: 'y'.repeat(24) });
   now += 3 * 86400000; await uploads.expire(); assert.equal((await store.getUpload(other.id)).status, 'expired'); assert.equal(store.event.reservedBytes, 0);
+});
+test('OAuth callback state is bound to the owner session and can only be consumed once', async t => {
+  const { call, base } = await fixture(t);
+  const login = async () => {
+    const result = await call('/api/admin/session', { method: 'POST', headers: { Origin: base, 'Content-Type': 'application/json' }, body: JSON.stringify({ adminKey: config.adminKey }) });
+    return result.response.headers.get('set-cookie').split(';')[0];
+  };
+  const cookie = await login();
+  const start = await call('/api/admin/oauth/start', { method: 'POST', headers: { Cookie: cookie, Origin: base, 'Content-Type': 'application/json' }, body: '{}' });
+  const state = new URL(start.data.url).searchParams.get('state');
+  const otherCookie = await login();
+  assert.equal((await call('/api/admin/oauth/callback?code=fake&state=' + state, { headers: { Cookie: otherCookie }, redirect: 'manual' })).response.status, 400);
+  assert.equal((await call('/api/admin/oauth/callback?code=fake&state=' + state, { headers: { Cookie: cookie }, redirect: 'manual' })).response.status, 302);
+  assert.equal((await call('/api/admin/oauth/callback?code=fake&state=' + state, { headers: { Cookie: cookie }, redirect: 'manual' })).response.status, 400);
 });
