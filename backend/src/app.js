@@ -70,6 +70,7 @@ export function createApp({ config, store, drive, clock = Date.now }) {
     res.json({ items: page.rows.map(view), nextCursor });
   }
   app.get('/healthz', (_req, res) => res.json({ ok: true }));
+  app.get('/api/health', (_req, res) => res.json({ ok: true }));
   app.get('/api/config', async (_req, res) => {
     const event = await store.getEvent();
     res.json({ coupleNames: 'Raquel & Aaron', title: 'Our wedding, through your eyes', weddingDate: 'October 25, 2026',
