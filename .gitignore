@@ -1,0 +1,14 @@
+node_modules/
+.env
+.env.*
+!.env.example
+cloudrun.env.yaml
+.local/
+*.log
+.DS_Store
+coverage/
+test-results/
+playwright-report/
+owner-access.html
+__pycache__/
+*.pyc

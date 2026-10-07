@@ -1,0 +1,20 @@
+{
+  "name": "wedding-photos-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test",
+    "check": "node --check src/app.js && node --check src/drive.js && node --check src/uploads.js"
+  },
+  "dependencies": {
+    "@google-cloud/firestore": "^9.3.1",
+    "@google-cloud/secret-manager": "^7.1.1",
+    "express": "^5.1.0",
+    "google-auth-library": "^10.3.0"
+  }
+}

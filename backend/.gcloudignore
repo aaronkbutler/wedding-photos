@@ -1,0 +1,6 @@
+node_modules
+.env*
+test
+*.log
+cloudrun.env.yaml
+.git

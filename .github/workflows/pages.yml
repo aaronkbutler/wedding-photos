@@ -1,0 +1,33 @@
+name: Publish wedding album
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check frontend/app.js && node --test frontend/test/upload.test.cjs
+      - name: Prepare public files
+        run: |
+          mkdir public-site
+          cp frontend/index.html frontend/styles.css frontend/app.js frontend/config.js public-site/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public-site
+      - uses: actions/deploy-pages@v4
+        id: deployment
