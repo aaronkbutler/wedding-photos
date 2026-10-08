@@ -24,5 +24,9 @@ os.chmod(page, 0o600)
 embed = local / 'wix-embed.txt'
 embed.write_text('Paste this complete URL into Wix\'s Embed a site element:\n\n' + guest + '\n\nOptional HTML embed:\n\n<iframe src="' + html.escape(guest, quote=True) + '" title="Raquel and Aaron wedding photo album" width="100%" height="1100" style="border:0" allow="fullscreen" referrerpolicy="no-referrer"></iframe>\n', encoding='utf-8')
 os.chmod(embed, 0o600)
+code = local / 'album-code.txt'
+code.write_text(event + '\n', encoding='utf-8')
+os.chmod(code, 0o600)
 print('Private owner handoff: ' + str(page))
 print('Wix embed instructions: ' + str(embed))
+print('Private album code: ' + str(code))
