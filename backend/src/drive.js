@@ -7,6 +7,7 @@ import { AppError, fail } from './core.js';
 
 const API = 'https://www.googleapis.com/drive/v3';
 const FIELDS = 'id,name,mimeType,size,trashed,thumbnailLink,parents';
+const REQUEST_TIMEOUT_MS = 5 * 60 * 1000;
 export class Secrets {
   constructor(config) { this.config = config; this.client = new SecretManagerServiceClient(); this.cache = new Map(); }
   name(id) { return `projects/${this.config.projectId}/secrets/${id}`; }
@@ -56,7 +57,7 @@ export class GoogleDrive {
   async request(url, options = {}) {
     let response;
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 120000);
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     try { response = await fetch(url, { ...options, redirect: options.redirect || 'error', signal: options.signal || controller.signal, headers: { Authorization: `Bearer ${await this.token()}`, ...options.headers } }); }
     catch (error) { if (error instanceof AppError) throw error; fail(503, 'drive_unavailable', 'The connection was interrupted. Checking the upload before retrying will preserve its progress.', true); }
     finally { clearTimeout(timeout); }

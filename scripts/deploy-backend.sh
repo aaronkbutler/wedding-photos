@@ -17,7 +17,7 @@ gcloud builds submit . --tag "$IMAGE" --project "$PROJECT_ID" --quiet
 gcloud run deploy "$SERVICE" \
   --project "$PROJECT_ID" --region "$REGION" --image "$IMAGE" \
   --service-account "$ACCOUNT" --allow-unauthenticated \
-  --cpu 1 --memory 512Mi --min-instances 0 --max-instances 2 \
+  --cpu 1 --memory 512Mi --min-instances 0 --max-instances 4 \
   --concurrency 20 --timeout 3600 --cpu-throttling \
   --set-env-vars "NODE_ENV=production,PROJECT_ID=${PROJECT_ID},OWNER_EMAIL=${OWNER_EMAIL},FRONTEND_ORIGIN=https://aaronkbutler.github.io,PUBLIC_BASE_URL=${SERVICE_URL},OAUTH_CONFIG_SECRET=wedding-photos-oauth,DRIVE_REFRESH_SECRET=wedding-photos-drive-refresh,FRONTEND_URL=https://aaronkbutler.github.io/wedding-photos/" \
   --set-secrets "ADMIN_KEY=wedding-photos-admin-key:latest,SIGNING_KEY=wedding-photos-signing-key:latest,EVENT_KEY=wedding-photos-event-key:latest" \
