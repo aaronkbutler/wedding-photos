@@ -25,7 +25,7 @@ node --test ../frontend/test/upload.test.cjs
 
 Serve the frontend with `python3 -m http.server 8787 --directory frontend` from the repository root. Open `http://localhost:8787/?demo=1` for a clearly labeled design preview with uploading disabled. To use the live backend, set its public URL in `frontend/config.js`; the production CORS policy allows the GitHub Pages origin, not arbitrary local origins.
 
-The upload protocol tests cover status reconciliation after lost responses, duplicate chunk retries, file completion, guest/owner separation, hidden media, reservation cleanup, and malformed inputs. Real Google Drive/Wix/mobile verification is also required before event use.
+The upload protocol tests cover status reconciliation after lost responses, duplicate chunk retries, file completion, guest/owner separation, hidden media, reservation cleanup, malformed inputs, and Google's HTTP 308 resumable-upload behavior. The live integration script has also verified a generated PNG and 34 MiB MP4 through Google Drive, a second guest session, exact-byte downloads, range playback, thumbnails, and hidden-link revocation. Wix and physical mobile-device verification are still required before event use.
 
 ## Provision and deploy
 
@@ -54,7 +54,7 @@ After deployment, put the returned URL in `frontend/config.js` and publish `fron
 5. Click **Connect Google Drive** and authorize the configured owner account. The app requests `drive.file`, `openid`, and `email`, verifies the account, and stores the offline refresh token in Secret Manager. It creates its own folder; the original files remain private in Drive.
 6. Open uploads, then copy the guest invitation URL for Wix. The fragment contains guest album access, not Google credentials.
 
-The existing Google OAuth project is in **Testing**. Its refresh token can expire in seven days. Complete the appropriate project publishing configuration or reconnect close to the event, then verify the owner status before guests upload. The project contains other OAuth clients, so review project-wide branding/publishing changes before applying them.
+The existing Google OAuth project is in **Testing**. Its refresh token can expire in seven days. Public [about](https://aaronkbutler.github.io/wedding-photos/about.html) and [privacy](https://aaronkbutler.github.io/wedding-photos/privacy.html) pages are included for production readiness. Complete the appropriate project publishing configuration or reconnect close to the event, then verify the owner status before guests upload. The project contains other OAuth clients, so review project-wide branding/publishing changes before applying them.
 
 ## Guest and owner behavior
 
