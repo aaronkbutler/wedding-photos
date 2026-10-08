@@ -12,6 +12,7 @@ class MemoryStore {
   async patchEvent(v) { Object.assign(this.event, v); }
   async getUpload(id) { return this.rows.has(id) ? { ...this.rows.get(id) } : null; }
   async patchUpload(id, v) { Object.assign(this.rows.get(id), v); }
+  async markDriveMissing(id, now) { const row = this.rows.get(id); if (!row || row.driveMissingAt) return row || null; Object.assign(row, { hidden: true, driveMissingAt: now }); this.event.usedBytes = Math.max(0, this.event.usedBytes - row.size); return { ...row }; }
   async reserve(row, config) {
     if (this.rows.has(row.id)) return this.getUpload(row.id);
     if (!this.event.uploadsOpen) throw new AppError(503, 'uploads_closed', 'Closed');
@@ -101,6 +102,24 @@ test('lost upload responses reconcile without duplicate bytes; only completed fi
   await store.patchUpload(row.id, { hidden: true });
   assert.equal((await call('/api/gallery', { headers })).data.items.length, 0);
   assert.equal((await fetch(media)).status, 404); // Previously signed link cannot bypass hiding.
+});
+test('Drive-deleted originals disappear from the guest gallery and collection total', async t => {
+  const { call, headers, drive, store, base } = await fixture(t);
+  const id = 'd'.repeat(40), driveId = 'drive-deleted';
+  store.rows.set(id, { id, driveId, name: 'deleted.jpg', mimeType: 'image/jpeg', size: 1234, caption: '', guestName: '', createdAt: 1, status: 'complete', hidden: false });
+  store.event.usedBytes = 1234;
+  drive.files.set(driveId, { id: driveId, size: 1234, mimeType: 'image/jpeg', parents: ['folder'], parts: [Buffer.alloc(1234)], trashed: false });
+  const first = (await call('/api/gallery', { headers })).data;
+  assert.equal(first.items.length, 1);
+  drive.files.delete(driveId);
+  const refreshed = (await call('/api/gallery', { headers })).data;
+  assert.equal(refreshed.items.length, 0);
+  assert.equal(store.rows.get(id).hidden, true);
+  assert.equal(typeof store.rows.get(id).driveMissingAt, 'number');
+  assert.equal(store.event.usedBytes, 0);
+  const owner = await call('/api/admin/session', { method: 'POST', headers: { Origin: base, 'Content-Type': 'application/json' }, body: JSON.stringify({ adminKey: config.adminKey }) });
+  const admin = (await call('/api/admin/gallery', { headers: { Cookie: owner.response.headers.get('set-cookie').split(';')[0] } })).data;
+  assert.equal(admin.items[0].missingFromDrive, true);
 });
 test('upload proofs cannot be swapped between files; malformed chunks never reach Drive', async t => {
   const { call, headers, drive } = await fixture(t);

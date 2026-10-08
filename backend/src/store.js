@@ -7,6 +7,16 @@ export class FirestoreStore {
   async patchEvent(data) { await this.eventRef.set(data, { merge: true }); }
   async getUpload(id) { return (await this.uploads.doc(id).get()).data() || null; }
   async patchUpload(id, data) { await this.uploads.doc(id).update(data); }
+  async markDriveMissing(id, now) {
+    return this.db.runTransaction(async tx => {
+      const ref = this.uploads.doc(id); const [snap, eventSnap] = await tx.getAll(ref, this.eventRef);
+      const row = snap.data(); const event = eventSnap.data() || {};
+      if (!row || row.driveMissingAt) return row || null;
+      tx.update(ref, { hidden: true, driveMissingAt: now });
+      tx.set(this.eventRef, { usedBytes: Math.max(0, (event.usedBytes || 0) - (row.size || 0)) }, { merge: true });
+      return { ...row, hidden: true, driveMissingAt: now };
+    });
+  }
   async reserve(record, config) {
     return this.db.runTransaction(async tx => {
       const ref = this.uploads.doc(record.id); const [existing, eventSnap] = await tx.getAll(ref, this.eventRef);

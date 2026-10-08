@@ -31,8 +31,9 @@ async function loadGallery(reset = false) {
   for (const item of result.items) {
     const row = document.createElement('div'); row.className = 'item';
     const text = document.createElement('p'); text.textContent = item.name;
-    const small = document.createElement('small'); small.textContent = `${item.guestName || 'A wedding guest'} · ${item.hidden ? 'Hidden' : 'Visible to guests'}`; text.append(small);
-    const button = document.createElement('button'); button.className = 'secondary'; button.textContent = item.hidden ? 'Show in album' : 'Hide from album';
+    const small = document.createElement('small'); small.textContent = `${item.guestName || 'A wedding guest'} · ${item.missingFromDrive ? 'Deleted or moved in Google Drive' : item.hidden ? 'Hidden' : 'Visible to guests'}`; text.append(small);
+    const button = document.createElement('button'); button.className = 'secondary'; button.textContent = item.missingFromDrive ? 'Unavailable' : item.hidden ? 'Show in album' : 'Hide from album';
+    button.disabled = item.missingFromDrive;
     button.addEventListener('click', () => run(async () => { button.disabled = true; await api('/api/admin/media/' + item.id, { method: 'POST', body: JSON.stringify({ hidden: !item.hidden }) }); await loadGallery(true); }));
     row.append(text, button); $('gallery').append(row);
   }

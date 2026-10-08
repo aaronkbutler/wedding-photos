@@ -63,6 +63,7 @@ The existing Google OAuth project is in **Testing**. Its refresh token can expir
 - The server verifies the final Drive file's size, MIME type, and parent folder before showing success.
 - Guests can pause/resume within the open page. Closing the page can require reselecting the files. Uploads are not guaranteed to continue when a phone locks.
 - An owner can pause new writes and hide or restore completed items. Hidden originals stay in Drive, but previously downloaded copies cannot be withdrawn.
+- Deleting, trashing, or moving an original out of the app-created Drive folder removes it from the guest gallery on the next gallery refresh. The owner dashboard marks that item unavailable.
 - Unsupported HEIC/HEVC previews offer an original download. The app does not transcode media.
 
 Gallery media is served through the authorized backend. Cloud Run network traffic can cost money beyond free allowances, which are shared with other workloads. Review real event usage and billing before describing operation as guaranteed free.

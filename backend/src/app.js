@@ -50,7 +50,7 @@ export function createApp({ config, store, drive, clock = Date.now }) {
   function view(row) {
     const link = kind => `${config.publicBaseUrl}/api/media/${row.id}/${kind}?token=${encodeURIComponent(tokens.sign({ purpose: 'media', id: row.id, kind, event: digest(config.eventKey) }, HOUR))}`;
     return { id: row.id, name: row.name, mimeType: row.mimeType, size: row.size, caption: row.caption,
-      guestName: row.guestName, createdAt: row.createdAt, hidden: !!row.hidden,
+      guestName: row.guestName, createdAt: row.createdAt, hidden: !!row.hidden, missingFromDrive: !!row.driveMissingAt,
       thumbnailUrl: link('thumbnail'), mediaUrl: link('original'), downloadUrl: link('download') };
   }
   function decodeCursor(raw) {
@@ -66,8 +66,24 @@ export function createApp({ config, store, drive, clock = Date.now }) {
     const limit = Math.min(48, Math.max(1, Number(req.query.limit) || 24));
     if (!Number.isInteger(limit)) fail(400, 'invalid_limit', 'Invalid page size.');
     const page = await store.page(decodeCursor(req.query.cursor), limit, owner);
+    let rows = page.rows;
+    if (!owner && rows.length) {
+      const event = await store.getEvent();
+      rows = (await Promise.all(rows.map(async row => {
+        try {
+          const file = await drive.metadata(row.driveId);
+          if (file && !file.trashed && file.parents?.includes(event.folderId)) return row;
+        } catch (error) {
+          // A temporary Drive problem should not empty the album. Only a confirmed
+          // missing file is removed from guest view.
+          if (error.code !== 'drive_not_found') return row;
+        }
+        await store.markDriveMissing(row.id, clock());
+        return null;
+      }))).filter(Boolean);
+    }
     const nextCursor = page.hasMore && page.last ? Buffer.from(JSON.stringify({ id: page.last.id, createdAt: page.last.createdAt })).toString('base64url') : null;
-    res.json({ items: page.rows.map(view), nextCursor });
+    res.json({ items: rows.map(view), nextCursor });
   }
   app.get('/healthz', (_req, res) => res.json({ ok: true }));
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
