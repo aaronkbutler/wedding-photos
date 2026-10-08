@@ -357,7 +357,7 @@
       open.addEventListener('click', () => showViewer(index));
       card.append(open);
       if (item.caption) card.append(element('p','gallery-card-caption', item.caption));
-      card.append(element('p','gallery-card-credit', item.guestName ? `A moment from ${item.guestName}` : 'A moment from our day'));
+      if (item.guestName) card.append(element('p','gallery-card-credit', `A moment from ${item.guestName}`));
       grid.append(card);
     });
     $('gallery-empty').hidden = items.length > 0 || state.galleryBusy;
@@ -416,7 +416,7 @@
       container.append(media);
     } else container.append(placeholder(item,true));
     $('lightbox-title').textContent = item.caption || item.name;
-    $('lightbox-credit').textContent = item.guestName ? `A moment from ${item.guestName}` : 'From our wedding day';
+    $('lightbox-credit').textContent = item.guestName ? `A moment from ${item.guestName}` : '';
     $('lightbox-caption').textContent = item.caption ? item.name : '';
     $('lightbox-position').textContent = `${state.viewerIndex + 1} of ${items.length}`;
     $('lightbox-download').hidden = !download;
