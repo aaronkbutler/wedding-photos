@@ -25,7 +25,7 @@ jobs:
       - name: Prepare public files
         run: |
           mkdir public-site
-          cp frontend/index.html frontend/styles.css frontend/app.js frontend/config.js public-site/
+          cp frontend/index.html frontend/about.html frontend/privacy.html frontend/styles.css frontend/app.js frontend/config.js public-site/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: public-site
