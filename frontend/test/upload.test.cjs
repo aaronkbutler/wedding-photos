@@ -27,9 +27,29 @@ function createPage(fetch) {
   const nodes = new Map();
   const filters = ['all','photo','video'].map(filter => { const node = new Node('button'); node.dataset.filter = filter; return node; });
   const document = {getElementById(id) { if (!nodes.has(id)) nodes.set(id,new Node()); return nodes.get(id); },createElement:tag => new Node(tag),querySelectorAll:() => filters,body:new Node('body')};
+  class XMLHttpRequest {
+    constructor() { this.upload = {}; this.headers = new Headers(); this.status = 0; this.responseText = ''; this.aborted = false; }
+    open(method,url) { this.method = method; this.url = url; }
+    setRequestHeader(name,value) { this.headers.set(name,value); }
+    abort() { if (this.aborted) return; this.aborted = true; this.onabort?.(); }
+    async send(body) {
+      await new Promise(resolve => setImmediate(resolve));
+      if (this.aborted) return;
+      this.upload.onprogress?.({loaded:Math.max(1,Math.floor(body.size/2)),total:body.size,lengthComputable:true});
+      await new Promise(resolve => setImmediate(resolve));
+      if (this.aborted) return;
+      try {
+        const response = await fetch(this.url,{method:this.method,headers:this.headers,body});
+        if (this.aborted) return;
+        this.status = response.status;
+        this.responseText = await response.text();
+        this.onload?.();
+      } catch { if (!this.aborted) this.onerror?.(); }
+    }
+  }
   const window = {WEDDING_PHOTOS_API:'https://album.example',addEventListener(){}};
   const location = {origin:'https://guest.example',href:'https://guest.example/#event=test-invite',hash:'#event=test-invite',search:''};
-  const context = vm.createContext({document,window,location,sessionStorage:{getItem(){return null;},setItem(){}},crypto:webcrypto,URL,URLSearchParams,Headers,AbortController,fetch,console,setTimeout:fn => setImmediate(fn)});
+  const context = vm.createContext({document,window,location,sessionStorage:{getItem(){return null;},setItem(){}},crypto:webcrypto,URL,URLSearchParams,Headers,AbortController,XMLHttpRequest,fetch,console,setTimeout:fn => setImmediate(fn)});
   vm.runInContext(fs.readFileSync(path.join(__dirname,'../app.js'),'utf8'),context);
   return {node:id => document.getElementById(id)};
 }
@@ -79,6 +99,30 @@ test('a lost chunk response reconciles the saved offset and never reports incomp
   assert.equal(sessions,1);
   assert.deepEqual(ranges,[`bytes 0-${chunk-1}/${size}`,`bytes ${chunk}-${2*chunk-1}/${size}`,`bytes ${2*chunk}-${size-1}/${size}`]);
   assert.match(page.node('upload-message').textContent,/1 moment shared/);
+});
+
+test('upload bytes and progress move while a chunk request is still in flight', async () => {
+  const size = 4 * 1024 * 1024;
+  let galleryReads = 0, releaseChunk;
+  const chunkResponse = new Promise(resolve => { releaseChunk = resolve; });
+  const page = createPage(async (url, options = {}) => {
+    const endpoint = new URL(url).pathname;
+    if (endpoint === '/api/config') return json({configured:true,uploadsOpen:true,chunkBytes:8388608,maxFileBytes:1073741824});
+    if (endpoint === '/api/guest/session') return json({token:'guest-token',expiresAt:Date.now()+3600000});
+    if (endpoint === '/api/gallery') { galleryReads++; return json({items:[],nextCursor:null}); }
+    if (endpoint === '/api/uploads') return json({id:'upload-id',uploadToken:'proof',offset:0,chunkBytes:8388608});
+    if (options.method === 'PUT') return chunkResponse;
+    return json({id:'upload-id',offset:0,complete:false});
+  });
+  await until(() => galleryReads === 1);
+  page.node('file-input').fire('change',{target:{files:[{name:'moment.mp4',type:'video/mp4',size,lastModified:1,slice:(start,end) => new Blob([new Uint8Array(end-start)])}]}});
+  page.node('start-upload').fire('click');
+  await until(() => page.node('upload-list').children[0]?.children[1]?.children[1]?.textContent.includes('50%'));
+  const info = page.node('upload-list').children[0].children[1];
+  assert.match(info.children[1].textContent,/50% · Sharing 2\.0 MB of 4\.0 MB/);
+  assert.equal(info.children[2].value,size/2);
+  releaseChunk(json({id:'upload-id',offset:size,complete:true}));
+  await until(() => page.node('upload-message').textContent.includes('1 moment shared'));
 });
 
 test('a server response with complete=true but a short offset cannot be shown as success', async () => {

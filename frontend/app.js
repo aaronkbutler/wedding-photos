@@ -62,6 +62,50 @@
     if (!response.ok) throw apiError(data.error?.message || 'Something went wrong. Please try again.', data.error?.code || 'REQUEST_FAILED', Boolean(data.error?.retryable), response.status);
     return data;
   }
+  async function uploadChunk(job, start, end, renewed = false) {
+    await ensureSession();
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const abort = () => xhr.abort();
+      const finish = () => job.controller.signal.removeEventListener('abort', abort);
+      xhr.open('PUT', `${apiBase}/api/uploads/${encodeURIComponent(job.id)}`);
+      xhr.responseType = 'text';
+      xhr.setRequestHeader('Authorization', `Bearer ${state.token}`);
+      xhr.setRequestHeader('X-Upload-Token', job.uploadToken);
+      xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+      xhr.setRequestHeader('Content-Range', `bytes ${start}-${end - 1}/${job.file.size}`);
+      xhr.upload.onprogress = event => {
+        const sent = Math.min(end, start + Math.max(0, event.loaded || 0));
+        job.displayOffset = Math.max(job.offset, sent);
+        if (job.phase === 'uploading' && job.statusNode) {
+          const percent = Math.floor(job.displayOffset / job.file.size * 100);
+          job.statusNode.textContent = job.displayOffset >= job.file.size ? '100% · Finishing up…' : `${percent}% · Sharing ${bytes(job.displayOffset)} of ${bytes(job.file.size)}`;
+          if (job.progressNode) job.progressNode.value = job.displayOffset;
+        }
+      };
+      xhr.onerror = () => { finish(); job.displayOffset = job.offset; reject(apiError('Connection interrupted. Check your connection, then try again.')); };
+      xhr.onabort = () => { finish(); job.displayOffset = job.offset; const error = new Error('Upload paused'); error.name = 'AbortError'; reject(error); };
+      xhr.onload = async () => {
+        finish();
+        let data;
+        try { data = JSON.parse(xhr.responseText); }
+        catch { reject(apiError('The album could not be reached. Please try again shortly.', 'INVALID_RESPONSE', xhr.status >= 500)); return; }
+        if (xhr.status === 401 && !renewed) {
+          state.token = ''; state.expiresAt = 0; job.displayOffset = job.offset;
+          try { resolve(await uploadChunk(job, start, end, true)); } catch (error) { reject(error); }
+          return;
+        }
+        if (xhr.status < 200 || xhr.status >= 300) {
+          job.displayOffset = job.offset;
+          reject(apiError(data.error?.message || 'Something went wrong. Please try again.', data.error?.code || 'REQUEST_FAILED', Boolean(data.error?.retryable), xhr.status));
+          return;
+        }
+        resolve(data);
+      };
+      job.controller.signal.addEventListener('abort', abort, {once:true});
+      xhr.send(job.file.slice(start, end));
+    });
+  }
   async function ensureSession() {
     if (state.token && Date.now() < state.expiresAt - 30000) return;
     if (state.authPromise) return state.authPromise;
@@ -130,7 +174,7 @@
       if (!file.size) { rejected.push(`${file.name}: the file is empty.`); continue; }
       const signature = `${file.name}:${file.size}:${file.lastModified}`;
       if (state.jobs.some(job => job.signature === signature)) continue;
-      const job = {file, mimeType, signature, uploadKey:crypto.randomUUID(), id:'', uploadToken:'', offset:0, phase:'ready', error:'', controller:null, paused:false, metadata:null, preview:''};
+      const job = {file, mimeType, signature, uploadKey:crypto.randomUUID(), id:'', uploadToken:'', offset:0, displayOffset:0, phase:'ready', error:'', controller:null, paused:false, metadata:null, preview:'', statusNode:null, progressNode:null};
       if (['image/jpeg','image/png','image/webp','image/gif','image/avif'].includes(mimeType)) job.preview = URL.createObjectURL(file);
       state.jobs.push(job);
       added++;
@@ -155,18 +199,23 @@
       info.append(element('p', 'upload-file-name', job.file.name));
       let message = `${bytes(job.file.size)} · Ready to share`;
       if (job.phase === 'queued') message = 'Waiting to share…';
-      if (job.phase === 'uploading') message = job.offset >= job.file.size ? 'Finishing up…' : `${Math.floor(job.offset / job.file.size * 100)}% · Sharing ${bytes(job.offset)} of ${bytes(job.file.size)}`;
+      const shownOffset = Math.max(job.offset, job.displayOffset || 0);
+      if (job.phase === 'uploading') message = shownOffset >= job.file.size ? '100% · Finishing up…' : `${Math.floor(shownOffset / job.file.size * 100)}% · Sharing ${bytes(shownOffset)} of ${bytes(job.file.size)}`;
       if (job.phase === 'done') message = '✓ Shared with everyone';
       if (job.phase === 'paused') message = `Paused at ${Math.floor(job.offset / job.file.size * 100)}% · Resume when you’re ready`;
       if (job.phase === 'error') message = job.error;
       if (job.phase === 'retrying') message = 'Connection interrupted · Reconnecting…';
-      info.append(element('p', 'upload-status', message));
+      job.statusNode = element('p', 'upload-status', message);
+      info.append(job.statusNode);
       if (['uploading','retrying','paused'].includes(job.phase)) {
         const progress = element('progress', 'upload-progress');
         progress.max = job.file.size;
-        progress.value = job.offset;
+        progress.value = shownOffset;
         progress.setAttribute('aria-label', `${job.file.name} upload progress`);
         info.append(progress);
+        job.progressNode = progress;
+      } else {
+        job.progressNode = null;
       }
       const actions = element('div','upload-item-actions');
       if (['uploading','retrying','queued'].includes(job.phase)) {
@@ -209,6 +258,7 @@
   function updateOffset(job, data) {
     if (!Number.isSafeInteger(data.offset) || data.offset < 0 || data.offset > job.file.size) throw apiError('The upload returned an unexpected position. Please retry.', 'INVALID_OFFSET', false);
     job.offset = data.offset;
+    job.displayOffset = data.offset;
     if (data.complete) {
       if (data.offset !== job.file.size) throw apiError('The upload has not finished. Please retry.', 'INCOMPLETE_UPLOAD', false);
       job.phase = 'done';
@@ -246,7 +296,7 @@
         renderQueue();
         const start = job.offset;
         const end = Math.min(start + job.chunkBytes, job.file.size);
-        const data = await request(`/api/uploads/${encodeURIComponent(job.id)}`, {method:'PUT',headers:{...uploadHeaders(job),'Content-Type':'application/octet-stream','Content-Range':`bytes ${start}-${end - 1}/${job.file.size}`},body:job.file.slice(start,end),signal:job.controller.signal});
+        const data = await uploadChunk(job, start, end);
         updateOffset(job, data);
         if (job.phase !== 'done' && job.offset <= start) throw apiError('The upload paused before this part was saved. Retrying…', 'NO_PROGRESS', true);
         failures = 0;
