@@ -32,7 +32,8 @@
     try { sessionStorage.setItem(storageKey, key); } catch { /* Private/embedded browsers can deny storage. */ }
     const direct = new URL(location.href);
     direct.hash = new URLSearchParams({event: key}).toString();
-    $('standalone-link').href = direct.href;
+    const standaloneLink = $('standalone-link');
+    if (standaloneLink) standaloneLink.href = direct.href;
   }
   function readEvent() {
     const fragment = new URLSearchParams(location.hash.slice(1)).get('event');
@@ -131,7 +132,7 @@
   function applyConfig(data) {
     state.config = {...defaults, ...data};
     if (typeof data.coupleNames === 'string') $('couple-names').textContent = data.coupleNames;
-    if (data.weddingDate) {
+    if (data.weddingDate && $('wedding-date')) {
       const text = String(data.weddingDate);
       const date = new Date(/^\d{4}-\d{2}-\d{2}/.test(text) ? `${text.slice(0, 10)}T12:00:00` : text);
       if (!Number.isNaN(date.getTime())) $('wedding-date').textContent = new Intl.DateTimeFormat('en-US',{month:'long', day:'numeric', year:'numeric'}).format(date);
@@ -425,7 +426,7 @@
     if (!$('lightbox').open) { $('lightbox').showModal(); document.body.classList.add('has-lightbox'); }
   }
 
-  $('standalone-link').href = location.href;
+  if ($('standalone-link')) $('standalone-link').href = location.href;
   $('invite-form').addEventListener('submit', event => { event.preventDefault(); const key = $('event-key').value.trim(); if (key) openAlbum(key); });
   $('choose-files').addEventListener('click', () => $('file-input').click());
   $('file-input').addEventListener('change', event => addFiles(event.target.files));
