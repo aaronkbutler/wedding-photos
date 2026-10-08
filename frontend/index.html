@@ -7,9 +7,9 @@
   <meta name="theme-color" content="#fffaf8">
   <meta name="description" content="Share photos and videos from Raquel and Aaron’s wedding and browse the shared album.">
   <title>Wedding Photos · Raquel &amp; Aaron</title>
-  <link rel="stylesheet" href="styles.css?v=20261008-compact">
+  <link rel="stylesheet" href="styles.css?v=20261008-viewer">
   <script src="config.js" defer></script>
-  <script src="app.js?v=20261008-caption" defer></script>
+  <script src="app.js?v=20261008-viewer" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to the album</a>
@@ -73,10 +73,10 @@
     </main>
   </div>
 
-  <dialog class="lightbox" id="lightbox" aria-labelledby="lightbox-title">
+  <dialog class="lightbox" id="lightbox" aria-label="Photo viewer" tabindex="-1">
     <div class="lightbox-top"><p id="lightbox-position"></p><button class="lightbox-close" id="lightbox-close" type="button" aria-label="Close photo viewer">×</button></div>
     <div class="lightbox-stage"><button class="lightbox-arrow previous" id="lightbox-previous" type="button" aria-label="Previous photo or video">←</button><div class="lightbox-media" id="lightbox-media"></div><button class="lightbox-arrow next" id="lightbox-next" type="button" aria-label="Next photo or video">→</button></div>
-    <div class="lightbox-bottom"><div><h2 id="lightbox-title"></h2><p id="lightbox-credit"></p><p id="lightbox-caption"></p></div><a class="button secondary" id="lightbox-download" target="_blank" rel="noopener noreferrer">Download original <span aria-hidden="true">↓</span></a></div>
+    <div class="lightbox-bottom"><div id="lightbox-copy"><h2 id="lightbox-title"></h2><p id="lightbox-credit"></p></div><a class="button secondary" id="lightbox-download" target="_blank" rel="noopener noreferrer">Download original <span aria-hidden="true">↓</span></a></div>
   </dialog>
   <noscript><p class="noscript">Please enable JavaScript to upload photos and view the album.</p></noscript>
 </body>

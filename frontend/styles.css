@@ -20,4 +20,8 @@
 .compact-gallery{padding:34px 0 54px}
 .compact-gallery .gallery-heading{display:block;margin-bottom:18px}
 .compact-gallery .gallery-heading h2{font-size:36px;line-height:1.15;letter-spacing:-1px;margin:0}
+.lightbox:focus{outline:none}
+.lightbox-loading{display:flex;align-items:center;justify-content:center;min-height:300px;width:100%}
+.lightbox-spinner{width:34px;height:34px;border:2px solid #d8c7c5;border-top-color:var(--rose);border-radius:50%;animation:lightbox-spin .75s linear infinite}
+@keyframes lightbox-spin{to{transform:rotate(360deg)}}
 @media(max-width:600px){.album-shell{padding:0 18px}.masthead{min-height:70px}.masthead-title{font-size:9px;letter-spacing:1.5px}.compact-invite{margin:24px 0;padding:27px 17px 20px}.compact-invite h1{font-size:27px}.compact-share{padding:25px 0 36px}.compact-share .drop-zone{min-height:270px;padding:31px 14px 25px}.compact-share .drop-zone h1{font-size:25px}.compact-gallery{padding:28px 0 36px}.compact-gallery .gallery-heading{margin-bottom:15px}.compact-gallery .gallery-heading h2{font-size:31px}.gallery-toolbar{overflow-x:auto}.filters{flex-shrink:0}}

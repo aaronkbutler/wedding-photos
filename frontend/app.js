@@ -6,7 +6,7 @@
   const apiBase = (window.WEDDING_PHOTOS_API || location.origin).replace(/\/+$/, '');
   const storageKey = `wedding-photo-event:${apiBase}`;
   const defaults = {maxFileBytes: 1073741824, chunkBytes: 8388608, uploadsOpen: true};
-  const state = {config: defaults, eventKey: '', token: '', expiresAt: 0, authPromise: null, jobs: [], processing: false, items: [], cursor: null, galleryBusy: false, filter: 'all', viewerIndex: 0};
+  const state = {config: defaults, eventKey: '', token: '', expiresAt: 0, authPromise: null, jobs: [], processing: false, items: [], cursor: null, galleryBusy: false, filter: 'all', viewerIndex: 0, viewerLoad: 0};
   const mimeByExtension = {jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp',heic:'image/heic',heif:'image/heif',gif:'image/gif',tif:'image/tiff',tiff:'image/tiff',avif:'image/avif',mp4:'video/mp4',mov:'video/quicktime',webm:'video/webm',mpeg:'video/mpeg',mpg:'video/mpeg',m4v:'video/x-m4v', '3gp':'video/3gpp','3g2':'video/3gpp2'};
   const allowedMimes = new Set(Object.values(mimeByExtension));
 
@@ -337,6 +337,13 @@
     node.append(element('span','placeholder-symbol',item.mimeType.startsWith('video/') ? '▷' : '◇'), element('p','',full ? 'This original may not preview in your browser. Download it to keep or view it.' : 'Original available'));
     return node;
   }
+  function loadingIndicator() {
+    const node = element('div', 'lightbox-loading');
+    const spinner = element('span', 'lightbox-spinner');
+    spinner.setAttribute('aria-hidden', 'true');
+    node.append(spinner, element('span', 'sr-only', 'Loading image'));
+    return node;
+  }
   function renderGallery() {
     const grid = $('gallery-grid');
     grid.replaceChildren();
@@ -345,7 +352,8 @@
       const card = element('article','gallery-card');
       const open = element('button','gallery-open');
       open.type = 'button';
-      open.setAttribute('aria-label',`View ${item.caption || item.name}${item.guestName ? ` from ${item.guestName}` : ''}`);
+      const mediaType = item.mimeType.startsWith('video/') ? 'video' : 'photo';
+      open.setAttribute('aria-label', `View ${mediaType}${item.caption ? `: ${item.caption}` : ''}${item.guestName ? ` from ${item.guestName}` : ''}`);
       const thumb = mediaURL(item.thumbnailUrl);
       if (thumb) {
         const img = element('img');
@@ -401,8 +409,10 @@
     state.viewerIndex = (index + items.length) % items.length;
     const item = items[state.viewerIndex];
     const container = $('lightbox-media');
+    const loadId = ++state.viewerLoad;
     container.querySelector('video')?.pause();
     container.replaceChildren();
+    container.removeAttribute('aria-busy');
     const source = mediaURL(item.mediaUrl);
     const download = mediaURL(item.downloadUrl);
     if (source) {
@@ -410,20 +420,36 @@
       if (item.mimeType.startsWith('video/')) {
         media = element('video'); media.controls = true; media.playsInline = true; media.preload = 'metadata';
         if (mediaURL(item.thumbnailUrl)) media.poster = mediaURL(item.thumbnailUrl);
-      } else { media = element('img'); media.alt = item.caption || item.name; media.referrerPolicy = 'no-referrer'; }
-      media.src = source;
-      media.addEventListener('error',() => media.replaceWith(placeholder(item,true)),{once:true});
-      container.append(media);
+        media.src = source;
+        media.addEventListener('error',() => media.replaceWith(placeholder(item,true)),{once:true});
+        container.append(media);
+      } else {
+        media = element('img'); media.alt = item.caption || 'Wedding photo'; media.referrerPolicy = 'no-referrer';
+        container.setAttribute('aria-busy', 'true');
+        container.append(loadingIndicator());
+        const finish = node => {
+          if (loadId !== state.viewerLoad) return;
+          container.removeAttribute('aria-busy');
+          container.replaceChildren(node);
+        };
+        media.addEventListener('load', () => finish(media), {once:true});
+        media.addEventListener('error', () => finish(placeholder(item,true)), {once:true});
+        media.src = source;
+      }
     } else container.append(placeholder(item,true));
-    $('lightbox-title').textContent = item.caption || item.name;
+    $('lightbox-title').textContent = item.caption;
     $('lightbox-credit').textContent = item.guestName ? `A moment from ${item.guestName}` : '';
-    $('lightbox-caption').textContent = item.caption ? item.name : '';
+    $('lightbox-copy').hidden = !item.caption && !item.guestName;
     $('lightbox-position').textContent = `${state.viewerIndex + 1} of ${items.length}`;
     $('lightbox-download').hidden = !download;
     if (download) $('lightbox-download').href = download;
     $('lightbox-previous').hidden = items.length < 2;
     $('lightbox-next').hidden = items.length < 2;
-    if (!$('lightbox').open) { $('lightbox').showModal(); document.body.classList.add('has-lightbox'); }
+    if (!$('lightbox').open) {
+      $('lightbox').showModal();
+      $('lightbox').focus({preventScroll:true});
+      document.body.classList.add('has-lightbox');
+    }
   }
 
   if ($('standalone-link')) $('standalone-link').href = location.href;
@@ -445,7 +471,7 @@
     renderGallery();
   }));
   $('lightbox-close').addEventListener('click', () => $('lightbox').close());
-  $('lightbox').addEventListener('close', () => { $('lightbox-media').querySelector('video')?.pause(); $('lightbox-media').replaceChildren(); document.body.classList.remove('has-lightbox'); });
+  $('lightbox').addEventListener('close', () => { state.viewerLoad++; $('lightbox-media').querySelector('video')?.pause(); $('lightbox-media').replaceChildren(); $('lightbox-media').removeAttribute('aria-busy'); document.body.classList.remove('has-lightbox'); });
   $('lightbox').addEventListener('click', event => { if (event.target === $('lightbox')) { const rect = $('lightbox').getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) $('lightbox').close(); } });
   $('lightbox-previous').addEventListener('click', () => showViewer(state.viewerIndex - 1));
   $('lightbox-next').addEventListener('click', () => showViewer(state.viewerIndex + 1));
