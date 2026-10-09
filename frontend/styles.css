@@ -20,6 +20,8 @@
 .compact-gallery{padding:34px 0 54px}
 .compact-gallery .gallery-heading{display:block;margin-bottom:18px}
 .compact-gallery .gallery-heading h2{font-size:36px;line-height:1.15;letter-spacing:-1px;margin:0}
+.initial-loader{display:flex;align-items:center;justify-content:center;min-height:240px}
+.album-spinner{width:34px;height:34px;border:2px solid #d8c7c5;border-top-color:var(--rose);border-radius:50%;animation:lightbox-spin .75s linear infinite}
 .lightbox:focus{outline:none}
 .lightbox-loading{display:flex;align-items:center;justify-content:center;min-height:300px;width:100%}
 .lightbox-spinner{width:34px;height:34px;border:2px solid #d8c7c5;border-top-color:var(--rose);border-radius:50%;animation:lightbox-spin .75s linear infinite}

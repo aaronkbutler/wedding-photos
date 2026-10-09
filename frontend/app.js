@@ -480,18 +480,22 @@
   window.addEventListener('hashchange', () => { const key = new URLSearchParams(location.hash.slice(1)).get('event'); if (key && key !== state.eventKey && !state.processing) openAlbum(key); });
 
   async function initialize() {
-    if (demo) {
-      $('preview-banner').hidden = false;
-      $('invite-panel').hidden = true;
-      $('guest-content').hidden = false;
-      renderGallery();
-      return;
+    try {
+      if (demo) {
+        $('preview-banner').hidden = false;
+        $('invite-panel').hidden = true;
+        $('guest-content').hidden = false;
+        renderGallery();
+        return;
+      }
+      try { applyConfig(await request('/api/config', {}, false)); }
+      catch { notice('The album couldn’t connect just now. Please refresh the page in a moment.',true); }
+      const key = readEvent();
+      if (key) await openAlbum(key);
+      else $('invite-panel').hidden = false;
+    } finally {
+      $('initial-loader').hidden = true;
     }
-    try { applyConfig(await request('/api/config', {}, false)); }
-    catch { notice('The album couldn’t connect just now. Please refresh the page in a moment.',true); }
-    const key = readEvent();
-    if (key) await openAlbum(key);
-    else $('invite-panel').hidden = false;
   }
   initialize();
 })();

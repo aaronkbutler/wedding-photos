@@ -7,9 +7,9 @@
   <meta name="theme-color" content="#fffaf8">
   <meta name="description" content="Share photos and videos from Raquel and Aaron’s wedding and browse the shared album.">
   <title>Wedding Photos · Raquel &amp; Aaron</title>
-  <link rel="stylesheet" href="styles.css?v=20261008-viewer">
+  <link rel="stylesheet" href="styles.css?v=20261008-auth-loader">
   <script src="config.js" defer></script>
-  <script src="app.js?v=20261008-auth" defer></script>
+  <script src="app.js?v=20261008-auth-loader" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to the album</a>
@@ -23,6 +23,7 @@
     <main id="main">
       <div class="notice" id="global-notice" role="status" hidden></div>
       <p class="preview-banner" id="preview-banner" hidden>Design preview · Uploads are turned off.</p>
+      <div class="initial-loader" id="initial-loader" role="status"><span class="album-spinner" aria-hidden="true"></span><span class="sr-only">Opening album</span></div>
 
       <section class="invite-panel compact-invite" id="invite-panel" aria-labelledby="invite-title" hidden>
         <h1 id="invite-title">Open the album</h1>
