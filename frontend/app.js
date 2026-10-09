@@ -491,6 +491,7 @@
     catch { notice('The album couldn’t connect just now. Please refresh the page in a moment.',true); }
     const key = readEvent();
     if (key) await openAlbum(key);
+    else $('invite-panel').hidden = false;
   }
   initialize();
 })();
